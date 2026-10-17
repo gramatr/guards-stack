@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    # Public repo — stays on GitHub-hosted ubuntu-latest, same reasoning
+    # as the three guards this composes (arc-runner-gramatr refuses jobs
+    # from public repos by default).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose file
+        run: docker compose config -q
+
+      - name: Build secret-guard + pii-guard (no gated license needed)
+        run: docker compose build secret-guard pii-guard
+
+      - name: Smoke test secret-guard + pii-guard
+        run: |
+          mkdir -p ~/.config/gramatr-guards
+          touch ~/.config/gramatr-guards/injection-guard.env
+          docker compose up -d secret-guard pii-guard
+          for port in 8732 8731; do
+            for i in $(seq 1 30); do
+              curl -sS -m 2 "http://127.0.0.1:${port}/health" && break
+              sleep 1
+            done
+          done
+          curl -sSf http://127.0.0.1:8732/health
+          curl -sSf http://127.0.0.1:8731/health
+          docker compose down

@@ -1,0 +1,96 @@
+# docker-compose.yml — gramatr/guards-stack
+#
+# One shared set of services for secret-guard, pii-guard, and
+# injection-guard — harness-agnostic by construction: every service
+# here is a plain HTTP daemon with no knowledge of Claude Code,
+# OpenCode, Codex, or any other caller. A per-harness adapter (e.g.
+# gramatr/claude-plugin-guards' PostToolUse hook) just points its HTTP
+# calls at these same fixed ports; it does not own or build this stack.
+#
+# RUN ONCE PER MACHINE, NOT ONCE PER HARNESS. If you're writing a new
+# harness adapter, do not vendor a copy of this file or re-build these
+# images from inside your adapter's repo — point at a single running
+# instance of this stack instead. Multiple independent copies on the
+# same machine will fight over the same ports (127.0.0.1:8730-8732).
+#
+# LOOPBACK-ONLY BY DESIGN — not a config choice to revisit casually.
+# secret-guard and pii-guard's own READMEs are explicit: neither tool
+# may ever be reachable over the network, even inside our own boundary
+# — see SERVER-SIDE.md before changing any of the port-publish lines
+# below. injection-guard's classify-only hosted tier is architecturally
+# allowed by its own README, but is NOT enabled by this file either;
+# turning it on is covered in SERVER-SIDE.md, deliberately kept out of
+# the default path here.
+#
+# Every port-publish below is "127.0.0.1:PORT:PORT", never a bare
+# "PORT:PORT" (which Docker publishes on 0.0.0.0) — this is the one
+# line in this file that must never be "simplified."
+
+services:
+  secret-guard:
+    build:
+      # Depends on gramatr/secret-guard#3 (optional HTTP daemon mode,
+      # not yet merged as of this file's creation). Until that merges,
+      # pin this to the feature branch to actually build:
+      #   context: https://github.com/gramatr/secret-guard.git#feat/http-daemon
+      context: https://github.com/gramatr/secret-guard.git
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/gramatr/guards-stack-secret-guard:local
+    ports:
+      - "127.0.0.1:8732:8732"
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  pii-guard:
+    build:
+      context: https://github.com/gramatr/pii-guard.git
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/gramatr/guards-stack-pii-guard:local
+    ports:
+      - "127.0.0.1:8731:8731"
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8731/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+
+  injection-guard:
+    # Lean CPU-only tag — the right default for a synchronous hook on a
+    # local machine (see injection-guard's own README: ~5x latency
+    # penalty vs GPU is imperceptible for a single-request hook call,
+    # and this avoids a ~4.7GB pull of unused CUDA runtime). Swap to
+    # `:gpu` only if this host has a GPU AND you've actually measured a
+    # need for it — not by default.
+    image: ghcr.io/gramatr/injection-guard:cpu
+    ports:
+      - "127.0.0.1:8730:8730"
+    env_file:
+      # Must contain HF_TOKEN=<token with the Llama Prompt Guard 2 gated
+      # license accepted> — see injection-guard's own README, "The
+      # HF_TOKEN problem." Not committed; whatever brings this stack up
+      # should create this file empty (0600) if missing rather than
+      # fail the whole stack over one optional service — see
+      # claude-plugin-guards' guards-selfheal.sh for the reference
+      # implementation of that check.
+      - ${HOME}/.config/gramatr-guards/injection-guard.env
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  default:
+    name: gramatr-guards
+    driver: bridge

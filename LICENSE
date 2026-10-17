@@ -1,0 +1,39 @@
+MIT License
+
+Copyright (c) 2026 grāmatr
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+This license covers grāmatr's own code in this repository — the Docker
+Compose definition, documentation, and any scripts added here directly.
+It does NOT cover the three guards this stack composes, each of which
+is its own project with its own license and (for injection-guard) its
+own third-party model obligations:
+
+- gramatr/secret-guard — MIT (gitleaks, the engine it wraps, is also MIT)
+- gramatr/pii-guard — MIT (Presidio and its default spaCy model, both MIT)
+- gramatr/injection-guard — MIT for its own code; the model it loads at
+  runtime (Meta's Llama Prompt Guard 2) is separately licensed under
+  the Llama 4 Community License — see NOTICE.md and that repo's own
+  NOTICE/THIRD_PARTY_LICENSES/ for the authoritative terms.
+
+See NOTICE.md in this repository for a summary of what that means for
+anyone running this stack.
